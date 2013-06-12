@@ -539,7 +539,7 @@ raise "No RACK_ENV or RAILS_ENV found" unless ENV["RAILS_ENV"] || ENV["RACK_ENV"
 
 databases = []
 
-main_database << parse_connection(ENV["RAILS_ENV"] || ENV["RACK_ENV"], ENV["DATABASE_URL"])
+main_database = parse_connection(ENV["RAILS_ENV"] || ENV["RACK_ENV"], ENV["DATABASE_URL"])
 
 ENV["DATABASES"].split(',').each do |database_name|
   databases << parse_connection(database_name, ENV["DATABASE_\#{database_name.upcase}_URL"])
@@ -554,23 +554,22 @@ end if ENV["DATABASES"]
   <%= attribute "password", main_database[:password], true %>
   <%= attribute "host",     main_database[:host] %>
   <%= attribute "port",     main_database[:port] %>
-  <% main_database[:params].each do |key, value| %>
+<% main_database[:params].each do |key, value| %>
+  <%= key %>: <%= value.first %>
+<% end %>
+<% databases.each do |database| %>
+  <%= database[:name] %>:
+    <%= attribute "adapter",  database[:adapter] %>
+    <%= attribute "database", database[:database] %>
+    <%= attribute "username", database[:username] %>
+    <%= attribute "password", database[:password], true %>
+    <%= attribute "host",     database[:host] %>
+    <%= attribute "port",     database[:port] %>
+
+  <% database[:params].each do |key, value| %>
     <%= key %>: <%= value.first %>
   <% end %>
-
-  <% databases.each do |database| %>
-    <%= database[:name] %>:
-      <%= attribute "adapter",  database[:adapter] %>
-      <%= attribute "database", database[:database] %>
-      <%= attribute "username", database[:username] %>
-      <%= attribute "password", database[:password], true %>
-      <%= attribute "host",     database[:host] %>
-      <%= attribute "port",     database[:port] %>
-
-    <% database[:params].each do |key, value| %>
-      <%= key %>: <%= value.first %>
-    <% end %>
-  <% end %>
+<% end %>
         DATABASE_YML
       end
     end
