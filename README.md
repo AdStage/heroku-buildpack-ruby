@@ -3,6 +3,23 @@ Heroku buildpack: Ruby
 
 This is a [Heroku buildpack](http://devcenter.heroku.com/articles/buildpacks) for Ruby, Rack, and Rails apps. It uses [Bundler](http://gembundler.com) for dependency management.
 
+It has the following modifications:
+
+* Multi database support:
+
+    heroku config:set DATABASES=metrics_master
+    heroku config:set DATABASE_METRICS_MASTER_URL=...
+
+    on push:
+
+    # config/database.yml
+    production:
+      ...
+      metrics_master:
+        ...
+
+  Use this with db-charmer.
+
 Usage
 -----
 
