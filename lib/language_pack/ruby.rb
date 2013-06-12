@@ -572,6 +572,7 @@ end if ENV["DATABASES"]
 <% end %>
         DATABASE_YML
       end
+      puts File.read('config/database.yml')
     end
   end
 
