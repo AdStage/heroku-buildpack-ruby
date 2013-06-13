@@ -3,6 +3,8 @@ require "rubygems"
 require "language_pack"
 require "language_pack/base"
 require "language_pack/bundler_lockfile"
+require 'cgi'
+require 'uri'
 
 # base Ruby Language Pack. This is for any base ruby app.
 class LanguagePack::Ruby < LanguagePack::Base
@@ -492,86 +494,59 @@ ERROR
     end
   end
 
+  def attribute(name, value, force_string = false)
+    if value
+      value_string =
+        if force_string
+          '"' + value + '"'
+        else
+          value
+        end
+      "\#{name}: \#{value_string}"
+    else
+      ""
+    end
+  end
+
+  def parse_connection(name, uri)
+    begin
+      uri = URI.parse(uri)
+    rescue
+      raise "#{name} has an invalid database uri"
+    end
+    connection = {
+      'adapter' => (uri.scheme == "postgres" ? "postgresql" : uri.scheme),
+      'database' => (uri.path || "").split("/")[1],
+      'username' => uri.user,
+      'password' => uri.password,
+      'host' => uri.host,
+      'port' => uri.port,
+    }.merge(CGI.parse(uri.query || ""))
+  end
+
+
   # writes ERB based database.yml for Rails. The database.yml uses the DATABASE_URL from the environment during runtime.
   def create_database_yml
     log("create_database_yml") do
       return unless File.directory?("config")
       topic("Writing config/database.yml to read from DATABASE_URL")
+      raise "No RACK_ENV or RAILS_ENV found" unless ENV["RAILS_ENV"] || ENV["RACK_ENV"]
+      databases = {}
+      main_database = parse_connection(ENV["RAILS_ENV"] || ENV["RACK_ENV"], ENV["DATABASE_URL"])
+      ENV["DATABASES"].split(',').each do |database_name|
+        main_database[database_name] = parse_connection(database_name, ENV["DATABASE_#{database_name.upcase}_URL"])
+      end if ENV["DATABASES"]
+
+      # Both ENVS
+      main_database = {'staging' => main_database, 'production' => main_database}
+
       File.open("config/database.yml", "w") do |file|
-        file.puts <<-DATABASE_YML
-<%
-require 'cgi'
-require 'uri'
-
-def attribute(name, value, force_string = false)
-  if value
-    value_string =
-      if force_string
-        '"' + value + '"'
-      else
-        value
+        file.puts YAML.dump(main_database)
       end
-    "\#{name}: \#{value_string}"
-  else
-    ""
-  end
-end
-
-def parse_connection(name, uri)
-  begin
-    uri = URI.parse(uri)
-  rescue
-    raise "\#{name} has an invalid database uri"
-  end
-  connection = {
-    name: name,
-    adapter: (uri.scheme == "postgres" ? "postgresql" : uri.scheme),
-    database: (uri.path || "").split("/")[1],
-    username: uri.user,
-    password: uri.password,
-    host: uri.host,
-    port: uri.port,
-    params: CGI.parse(uri.query || "")
-  }
-end
-
-raise "No RACK_ENV or RAILS_ENV found" unless ENV["RAILS_ENV"] || ENV["RACK_ENV"]
-
-databases = []
-
-main_database = parse_connection(ENV["RAILS_ENV"] || ENV["RACK_ENV"], ENV["DATABASE_URL"])
-
-ENV["DATABASES"].split(',').each do |database_name|
-  databases << parse_connection(database_name, ENV["DATABASE_\#{database_name.upcase}_URL"])
-end if ENV["DATABASES"]
-
-%>
-
-<%= main_database[:name] %>: &alias
-  <%= attribute "adapter",  main_database[:adapter] %>
-  <%= attribute "database", main_database[:database] %>
-  <%= attribute "username", main_database[:username] %>
-  <%= attribute "password", main_database[:password], true %>
-  <%= attribute "host",     main_database[:host] %>
-  <%= attribute "port",     main_database[:port] %>
-<% main_database[:params].each do |key, value| %>
-  <%= key %>: <%= value.first %>
-<% end %>
-<% databases.each do |database| %>
-  <%= database[:name] %>:
-    <%= attribute "adapter",  database[:adapter] %>
-    <%= attribute "database", database[:database] %>
-    <%= attribute "username", database[:username] %>
-    <%= attribute "password", database[:password], true %>
-    <%= attribute "host",     database[:host] %>
-    <%= attribute "port",     database[:port] %>
-
-  <% database[:params].each do |key, value| %>
-    <%= key %>: <%= value.first %>
-  <% end %>
-<% end %>
-        DATABASE_YML
-      end
+      puts '------------'
+      puts 'Dumping hardcoded config/database.yml'
+      puts YAML.dump(main_database)
+      puts '------------'
     end
   end
 
