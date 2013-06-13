@@ -570,11 +570,6 @@ end if ENV["DATABASES"]
     <%= key %>: <%= value.first %>
   <% end %>
 <% end %>
-
-<% if ENV['RAILS_ENV_ALIAS'] %>
-<%= ENV['RAILS_ENV_ALIAS'] %>:
-  <<: *alias
-<% end %>
         DATABASE_YML
       end
     end
