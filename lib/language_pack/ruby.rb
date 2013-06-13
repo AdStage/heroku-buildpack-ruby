@@ -547,7 +547,7 @@ end if ENV["DATABASES"]
 
 %>
 
-<%= main_database[:name] %>:
+<%= main_database[:name] %>: &alias
   <%= attribute "adapter",  main_database[:adapter] %>
   <%= attribute "database", main_database[:database] %>
   <%= attribute "username", main_database[:username] %>
@@ -570,9 +570,13 @@ end if ENV["DATABASES"]
     <%= key %>: <%= value.first %>
   <% end %>
 <% end %>
+
+<% if ENV['RAILS_ENV_ALIAS'] %>
+<%= ENV['RAILS_ENV_ALIAS'] %>:
+  <<: *alias
+<% end %>
         DATABASE_YML
       end
-      puts File.read('config/database.yml')
     end
   end
 
